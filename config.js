@@ -1,12 +1,13 @@
-// Paste your Firebase web app settings here (Firebase console → Project settings →
-// Your apps → Web app → Config). These values are not secret: access is protected by firestore.rules.
+// Firebase web app settings (Firebase console → Project settings → Your apps → Web app).
+// These values are not secret: access is protected by firestore.rules.
 window.FIREBASE_CONFIG = {
-  apiKey: "PASTE_API_KEY",
-  authDomain: "PASTE.firebaseapp.com",
-  projectId: "PASTE_PROJECT_ID",
-  storageBucket: "PASTE.firebasestorage.app",
-  messagingSenderId: "PASTE",
-  appId: "PASTE"
+  apiKey: "AIzaSyCwbNgh6SuOKCp1OfuYM3xWMbtQo4Y41DQ",
+  authDomain: "team-to-do-3c687.firebaseapp.com",
+  projectId: "team-to-do-3c687",
+  storageBucket: "team-to-do-3c687.firebasestorage.app",
+  messagingSenderId: "228607090690",
+  appId: "1:228607090690:web:245faf00e25ad01b2fc71b",
+  measurementId: "G-ZRFV6KEVWY"
 };
 // Name of the Firestore database as shown in the Firebase console's database picker
-window.FIRESTORE_DATABASE = "(default)";
+window.FIRESTORE_DATABASE = "default";
