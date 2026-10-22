@@ -294,7 +294,10 @@ async function start(api){
  fb.onAuth(async u=>{
   Object.values(months).forEach(f=>f());months={};lists={};
   if(!u){if(!fromLink)login();return}
-  const em=u.email.toLowerCase(),s=await fb.staff(em).catch(()=>null);
+  let blocked=false;
+  const em=u.email.toLowerCase(),s=await fb.staff(em).catch(x=>{blocked=x&&x.code=='permission-denied';return null});
+  // the database refuses all reads until firestore.rules is published, which looks like "not on the list"
+  if(blocked&&!k)return login('Signed in, but the database refused access. Check that firestore.rules is published (Firestore → Rules → Publish) and that the staff list has a document named exactly '+em+'.');
   if(!s){if(k)return $('#view').innerHTML='<div class="empty"><b>🔗</b>This link no longer works. Ask your admin to send you a new one.</div>';return login('This account is not on the staff list yet. Ask your admin to add '+u.email+'.')}
   me={email:em,name:s.name||em.split('@')[0]};admin=s.role=='admin';
   // team members never see "Sign out", so they can't lock themselves out by accident
