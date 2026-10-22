@@ -11,10 +11,17 @@ service cloud.firestore {
     function isAdmin() { return isStaff() && get(staffDoc()).data.role == 'admin'; }
     function onlyChanges(keys) { return request.resource.data.diff(resource.data).affectedKeys().hasOnly(keys); }
 
-    // Staff list is managed by the owner in the Firebase console
+    // Staff list: admins add and remove team members in the app.
+    // Admins themselves are added by the owner in the Firebase console.
     match /staff/{e} {
       allow read: if request.auth != null && (email() == e || isAdmin());
-      allow write: if false;
+      allow create, update: if isAdmin() && request.resource.data.role == 'team';
+      allow delete: if isAdmin() && resource.data.role == 'team';
+    }
+
+    // Team members' personal-link logins: admins only
+    match /keys/{e} {
+      allow read, write: if isAdmin();
     }
 
     // To-do lists: admins assign and delete; each person sees and ticks only their own

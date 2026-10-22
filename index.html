@@ -86,21 +86,33 @@ function sheet(h){$('#sbox').innerHTML=h;$('#sheet').classList.add('on')}
 function closeSheet(){$('#sheet').classList.remove('on')}
 $('#sheet').onclick=ev=>{if(ev.target.id=='sheet')closeSheet()};
 
-let fb,me={},admin=false,staff=[],lists={},months={},tab='assign',day=today(),open=new Set();
+let fb,me={},admin=false,staff=[],keys={},lists={},months={},tab='assign',day=today(),open=new Set();
+// new-person form on the admin's Team tab
+const P={name:'',phone:''};
 // the assign form keeps its own state so it survives re-renders
 const F={who:new Set(),when:'today',date:'',title:'',items:['']};
 const mine=()=>Object.values(lists).filter(l=>l.to==me.email);
 const isDone=l=>l.items.length&&l.items.every(i=>i.d);
 
+/* ---------- personal links ---------- */
+// Each team member signs in by opening their own link: it carries their (random) login,
+// so they never type an email or password. Anyone with the link can open that person's list.
+const b64=s=>btoa(unescape(encodeURIComponent(s))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+const unb64=s=>decodeURIComponent(escape(atob(s.replace(/-/g,'+').replace(/_/g,'/'))));
+const personalLink=email=>keys[email]?appLink()+'?k='+b64(email+'\n'+keys[email]):appLink();
+
 /* ---------- WhatsApp ---------- */
-function waLink(person,l,nudge){
- const first=(person.name||'').split(' ')[0]||'there',ph=String(person.phone||'').replace(/\D/g,'');
- const num=ph.length==10?'91'+ph:ph;
- const left=l.items.filter(i=>!i.d);
- const msg=nudge?`Hi ${first}, reminder: *${l.title}* (${nice(l.date)}) still has ${left.length} to do:\n${left.map(i=>'• '+i.t).join('\n')}\n\nTick them off here: ${appLink()}`
-  :`Hi ${first}, your to-do for ${nice(l.date)}:\n*${l.title}*\n${l.items.map(i=>'• '+i.t).join('\n')}\n\nTick them off here: ${appLink()}`;
+function wa(person,msg){
+ const ph=String(person.phone||'').replace(/\D/g,''),num=ph.length==10?'91'+ph:ph;
  return `https://wa.me/${num}?text=${encodeURIComponent(msg)}`;
 }
+const first=p=>(p.name||'').split(' ')[0]||'there';
+function waLink(person,l,nudge){
+ const left=l.items.filter(i=>!i.d),link=personalLink(person.email);
+ return wa(person,nudge?`Hi ${first(person)}, reminder: *${l.title}* (${nice(l.date)}) still has ${left.length} to do:\n${left.map(i=>'• '+i.t).join('\n')}\n\n👉 Tap to open your list: ${link}`
+  :`Hi ${first(person)}, your to-do for ${nice(l.date)}:\n*${l.title}*\n${l.items.map(i=>'• '+i.t).join('\n')}\n\n👉 Tap to open your list and tick them off: ${link}`);
+}
+const waWelcome=p=>wa(p,`Hi ${first(p)}! 👋 This is your to-do list link.\n\n👉 Tap it to see your work for the day and tick things off when done: ${personalLink(p.email)}\n\nKeep this message. Tap the link any time to open your list.`);
 
 /* ---------- shared list card (team view and admin "My list") ---------- */
 function card(l){
@@ -122,7 +134,8 @@ const pending=()=>mine().filter(x=>x.date<=today()).reduce((s,x)=>s+x.items.filt
 function vAssign(){
  const people=staff.filter(p=>p.role!='admin'||p.email==me.email).concat(staff.filter(p=>p.role=='admin'&&p.email!=me.email));
  const w=F.when;
- return `<div class="lbl">Who?</div><div class="chips">${people.map(p=>`<button class="chip ${F.who.has(p.email)?'on':''}" data-who="${e(p.email)}">${e(p.name||p.email)}${p.email==me.email?' (me)':''}</button>`).join('')||'<span class="sub">No staff added yet. See the README.</span>'}</div>
+ return `<div class="lbl">Who?</div><div class="chips">${people.map(p=>`<button class="chip ${F.who.has(p.email)?'on':''}" data-who="${e(p.email)}">${e(p.name||p.email)}${p.email==me.email?' (me)':''}</button>`).join('')}</div>
+ ${people.length<2?'<p class="sub">Add your team in the <b>Team</b> tab first.</p>':''}
  <div class="lbl">When?</div><div class="chips"><button class="chip ${w=='today'?'on':''}" data-when="today">Today</button><button class="chip ${w=='tomorrow'?'on':''}" data-when="tomorrow">Tomorrow</button><button class="chip ${w=='pick'?'on':''}" data-when="pick">Pick a date</button></div>
  ${w=='pick'?`<input id="f_date" type="date" value="${e(F.date)}" min="${today()}" style="margin-top:10px">`:''}
  <label for="f_title">Title</label><input id="f_title" placeholder="e.g. Hall setup for wedding" value="${e(F.title)}">
@@ -165,18 +178,41 @@ function vProgress(){
  ${forDay.length?`<h2>${nice(day)}</h2>`+group(forDay).map(pcard).join(''):`<div class="empty"><b>📋</b>Nothing assigned for ${nice(day).toLowerCase()}.<button class="btn" data-a="goassign">Assign something</button></div>`}`;
 }
 
+/* ---------- admin: team ---------- */
+function vTeam(){
+ const ppl=[...staff].sort((a,b)=>(a.role=='admin')-(b.role=='admin')||(a.name||'').localeCompare(b.name||''));
+ return `<div class="card" style="margin-top:16px"><h3>Add a person</h3>
+ <label for="p_name">Name</label><input id="p_name" value="${e(P.name)}" placeholder="e.g. Ravi Kumar" autocomplete="off">
+ <label for="p_phone">WhatsApp number</label><input id="p_phone" value="${e(P.phone)}" type="tel" inputmode="tel" placeholder="e.g. 98765 43210">
+ <button class="btn" data-a="addperson">Add</button></div>
+ <h2>Your team</h2>${ppl.map(p=>`<div class="card"><div class="top"><h3>${e(p.name||p.email)}</h3><span class="when">${p.role=='admin'?'Admin':e(p.phone||'')}</span></div>
+ ${p.role=='admin'?'':`<div class="acts">${keys[p.email]?`<a class="btn sm wa" target="_blank" rel="noopener" href="${waWelcome(p)}">Send their link</a>`:''}<button class="btn sm alt dng" data-rm="${e(p.email)}">Remove</button></div>`}</div>`).join('')}`;
+}
+async function addPerson(){
+ const name=P.name.trim(),phone=P.phone.replace(/\D/g,'');
+ if(!name)return toast('Add their name');
+ if(phone&&phone.length<10)return toast('Check the WhatsApp number');
+ const btn=document.querySelector('[data-a=addperson]');btn.disabled=true;btn.textContent='Adding…';
+ try{
+  const p=await fb.createPerson(name,phone);
+  staff.push(p.staff);keys[p.staff.email]=p.pw;P.name='';P.phone='';render();
+  sheet(`<h3>${e(name)} is added ✓</h3><p class="sub">Send them their link. They tap it to open their to-do list, no password needed.</p>
+  <a class="btn wa" target="_blank" rel="noopener" href="${waWelcome(p.staff)}">Send link on WhatsApp</a><button class="btn alt" data-a="closesheet">Done</button>`);
+ }catch(x){console.error(x);toast('Could not add, check your internet');btn.disabled=false;btn.textContent='Add'}
+}
+
 /* ---------- render ---------- */
 function render(){
  if(!me.email)return;
  const p=pending();
  $('#hi').textContent=`Hi ${me.name}`+(admin?'':` · ${p?p+' thing'+(p>1?'s':'')+' to do':'nothing pending'}`);
  if(admin){
-  const tabs=[['assign','＋','Assign'],['progress','✓','Progress']];if(mine().length)tabs.push(['mine','☰','My list'+(p?' ('+p+')':'')]);
+  const tabs=[['assign','＋','Assign'],['progress','✓','Progress'],['team','👥','Team']];if(mine().length)tabs.push(['mine','☰','My list'+(p?' ('+p+')':'')]);
   $('#tabs').hidden=false;$('#tabs').innerHTML=tabs.map(([k,i,l])=>`<button class="${tab==k?'on':''}" data-tab="${k}"><b>${i}</b>${l}</button>`).join('');
  }
  // keep focus and typing when live updates arrive
  const a=document.activeElement,id=a&&a.id,ii=a&&a.dataset&&a.dataset.i;
- $('#view').innerHTML=!admin?vMine():tab=='assign'?vAssign():tab=='progress'?vProgress():vMine();
+ $('#view').innerHTML=!admin?vMine():tab=='assign'?vAssign():tab=='progress'?vProgress():tab=='team'?vTeam():vMine();
  const back=id?document.getElementById(id):ii!=null?document.querySelector(`.it[data-i="${ii}"]`):null;
  if(back){back.focus();try{const n=back.value.length;back.setSelectionRange(n,n)}catch(x){}}
 }
@@ -194,7 +230,9 @@ document.addEventListener('click',async ev=>{
  if(d.open){open.has(d.open)?open.delete(d.open):open.add(d.open);render();return}
  if(d.del){if(delArm!=d.del){delArm=d.del;t.textContent='Tap again to delete';return}
   delArm='';try{await fb.del(d.del);toast('Deleted')}catch(x){toast('Could not delete')}return}
- const A={assign,closesheet:closeSheet,goassign:()=>{tab='assign';render()},gotoday:()=>{day=today();render()},
+ if(d.rm){if(delArm!=d.rm){delArm=d.rm;t.textContent='Tap again to remove';return}
+  delArm='';try{await fb.removePerson(d.rm);staff=staff.filter(p=>p.email!=d.rm);delete keys[d.rm];F.who.delete(d.rm);render();toast('Removed. Their link no longer works.')}catch(x){toast('Could not remove')}return}
+ const A={assign,addperson:addPerson,closesheet:closeSheet,goassign:()=>{tab='assign';render()},gotoday:()=>{day=today();render()},
   prevday:()=>{day=addDays(day,-1);render()},nextday:()=>{day=addDays(day,1);render()}};
  if(d.a&&A[d.a])A[d.a]();
 });
@@ -202,6 +240,8 @@ document.addEventListener('input',ev=>{
  const t=ev.target;
  if(t.id=='f_title')F.title=t.value;
  if(t.id=='f_date')F.date=t.value;
+ if(t.id=='p_name')P.name=t.value;
+ if(t.id=='p_phone')P.phone=t.value;
  if(t.classList.contains('it')){
   F.items[+t.dataset.i]=t.value;
   // typing in the last box adds a fresh empty box below it
@@ -217,10 +257,12 @@ $('#out').onclick=()=>fb.signOut().then(()=>location.reload());
 /* ---------- sign-in ---------- */
 function login(msg){
  me={};$('#hi').textContent='';$('#tabs').hidden=true;$('#out').hidden=!msg;
- $('#view').innerHTML=`<div class="card" style="margin-top:20px"><div class="sub">${e(msg||'Sign in with the email and password your admin gave you.')}</div>
+ $('#view').innerHTML=`<div class="empty"><b>📲</b>Open the link your admin sent you on WhatsApp to see your to-do list.</div>
+ <details class="card"><summary class="sub" style="cursor:pointer">Admin sign-in</summary><div class="sub" style="margin-top:8px">${e(msg||'Admins sign in with email and password.')}</div>
  <label for="em">Email</label><input id="em" type="email" autocomplete="username" inputmode="email">
  <label for="pw">Password</label><input id="pw" type="password" autocomplete="current-password">
- <button class="btn" id="go">Sign in</button><button class="lnk" id="fp" style="margin-top:10px">Forgot password?</button></div>`;
+ <button class="btn" id="go">Sign in</button><button class="lnk" id="fp" style="margin-top:10px">Forgot password?</button></details>`;
+ if(msg)$('#view details').open=true;
  const go=async()=>{try{await fb.signIn($('#em').value.trim(),$('#pw').value)}catch(x){toast(x.code=='auth/too-many-requests'?'Too many tries, wait a minute':'Wrong email or password')}};
  $('#go').onclick=go;$('#pw').onkeydown=ev=>{if(ev.key=='Enter')go()};
  $('#fp').onclick=async()=>{const m=$('#em').value.trim();if(!m)return toast('Type your email first');try{await fb.reset(m)}catch(x){}toast('Check your email for a reset link')};
@@ -237,13 +279,21 @@ function ensureMonth(ym){
 }
 async function start(api){
  fb=api;
+ // opened from a personal link: sign in as that person (the link stays in the address so
+ // "Add to Home Screen" keeps working on iPhones)
+ const k=new URLSearchParams(location.search).get('k');let fromLink=false;
+ if(k){try{const [m,pw]=unb64(k).split('\n');if(await fb.currentEmail()!=m){fromLink=true;await fb.signIn(m,pw)}}
+  catch(x){$('#view').innerHTML=x&&x.code=='auth/network-request-failed'?'<div class="empty"><b>📶</b>No internet. Connect and open the link again.</div>'
+   :'<div class="empty"><b>🔗</b>This link no longer works. Ask your admin to send you a new one.</div>';return}}
  fb.onAuth(async u=>{
   Object.values(months).forEach(f=>f());months={};lists={};
-  if(!u)return login();
+  if(!u){if(!fromLink)login();return}
   const em=u.email.toLowerCase(),s=await fb.staff(em).catch(()=>null);
-  if(!s)return login('This account is not on the staff list yet. Ask your admin to add '+u.email+'.');
-  me={email:em,name:s.name||em.split('@')[0]};admin=s.role=='admin';$('#out').hidden=false;
-  if(admin){try{staff=await fb.allStaff()}catch(x){staff=[]}}
+  if(!s){if(k)return $('#view').innerHTML='<div class="empty"><b>🔗</b>This link no longer works. Ask your admin to send you a new one.</div>';return login('This account is not on the staff list yet. Ask your admin to add '+u.email+'.')}
+  me={email:em,name:s.name||em.split('@')[0]};admin=s.role=='admin';
+  // team members never see "Sign out", so they can't lock themselves out by accident
+  $('#out').hidden=!admin;
+  if(admin){try{[staff,keys]=await Promise.all([fb.allStaff(),fb.allKeys()])}catch(x){staff=[];keys={}}}
   const d=new Date();[-1,0,1].forEach(m=>ensureMonth(ymd(new Date(d.getFullYear(),d.getMonth()+m,1)).slice(0,7)));
   render();
  });
@@ -263,8 +313,8 @@ if('serviceWorker' in navigator)addEventListener('load',()=>navigator.serviceWor
 </script>
 <script type="module">
 import {initializeApp} from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
-import {getAuth,onAuthStateChanged,signInWithEmailAndPassword,sendPasswordResetEmail,signOut} from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
-import {initializeFirestore,persistentLocalCache,collection,doc,getDoc,getDocs,addDoc,updateDoc,deleteDoc,onSnapshot,query,where} from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
+import {getAuth,initializeAuth,inMemoryPersistence,onAuthStateChanged,signInWithEmailAndPassword,createUserWithEmailAndPassword,sendPasswordResetEmail,signOut} from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
+import {initializeFirestore,persistentLocalCache,collection,doc,getDoc,getDocs,setDoc,addDoc,updateDoc,deleteDoc,onSnapshot,query,where} from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 const C=window.FIREBASE_CONFIG;
 if(!C||!C.apiKey||C.apiKey.startsWith('PASTE'))document.getElementById('view').innerHTML='<p class="sub">Setup not finished: add your Firebase settings to config.js (see README).</p>';
 else{
@@ -273,8 +323,23 @@ else{
  const fs=initializeFirestore(app,{localCache:persistentLocalCache()},window.FIRESTORE_DATABASE||'(default)');
  if(window.USE_EMULATORS)await window.USE_EMULATORS(a,fs); // local testing only
  const L=collection(fs,'lists');
+ // a second, memory-only sign-in used just to create team members' logins,
+ // so the admin stays signed in while adding someone
+ const maker=initializeAuth(initializeApp(C,'maker'),{persistence:inMemoryPersistence});
+ if(window.USE_EMULATORS)await window.USE_EMULATORS(maker,null);
+ const rand=n=>{const c='abcdefghijkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789',v=crypto.getRandomValues(new Uint32Array(n));return [...v].map(x=>c[x%c.length]).join('')};
  start({
   onAuth:f=>onAuthStateChanged(a,f),
+  currentEmail:async()=>{await a.authStateReady();return a.currentUser&&a.currentUser.email},
+  createPerson:async(name,phone)=>{
+   const email=('staff-'+rand(10)+'@example.com').toLowerCase(),pw=rand(24);
+   await createUserWithEmailAndPassword(maker,email,pw);await signOut(maker);
+   const staff={name,phone,role:'team'};
+   await setDoc(doc(fs,'keys',email),{pw});await setDoc(doc(fs,'staff',email),staff);
+   return {staff:{email,...staff},pw};
+  },
+  removePerson:async email=>{await deleteDoc(doc(fs,'staff',email));await deleteDoc(doc(fs,'keys',email))},
+  allKeys:async()=>{const k={};(await getDocs(collection(fs,'keys'))).docs.forEach(x=>k[x.id]=x.data().pw);return k},
   signIn:(m,p)=>signInWithEmailAndPassword(a,m,p),
   reset:m=>sendPasswordResetEmail(a,m),
   signOut:()=>signOut(a),
