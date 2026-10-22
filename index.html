@@ -6,7 +6,13 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Team To-Do">
 <title>Team To-Do</title>
-<link rel="manifest" href="manifest.webmanifest">
+<link rel="manifest" href="manifest.webmanifest" id="mf">
+<script>
+// iPhone home-screen apps don't share sign-in with Safari and open at the manifest's start page.
+// When an iPhone opens a personal link, drop the manifest so "Add to Home Screen" saves this exact
+// link instead, and the icon opens straight into that person's list.
+if(/iphone|ipad|ipod/i.test(navigator.userAgent)&&new URLSearchParams(location.search).has('k'))document.getElementById('mf').remove();
+</script>
 <link rel="icon" href="icons/icon-192.png">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@400;600;800&display=swap" rel="stylesheet">
