@@ -8,7 +8,6 @@
 <title>Team To-Do</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icons/icon-192.png">
-<link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@400;600;800&display=swap" rel="stylesheet">
 <script src="config.js"></script>
@@ -195,11 +194,11 @@ async function addPerson(){
  if(phone&&phone.length<10)return toast('Check the WhatsApp number');
  const btn=document.querySelector('[data-a=addperson]');btn.disabled=true;btn.textContent='Adding…';
  try{
-  const p=await fb.createPerson(name,phone,me.email);
+  const p=await fb.createPerson(name,phone);
   staff.push(p.staff);keys[p.staff.email]=p.pw;P.name='';P.phone='';render();
   sheet(`<h3>${e(name)} is added ✓</h3><p class="sub">Send them their link. They tap it to open their to-do list, no password needed.</p>
   <a class="btn wa" target="_blank" rel="noopener" href="${waWelcome(p.staff)}">Send link on WhatsApp</a><button class="btn alt" data-a="closesheet">Done</button>`);
- }catch(x){console.error(x);toast(/Confirm email/.test(x.message)?x.message:'Could not add, check your internet');btn.disabled=false;btn.textContent='Add'}
+ }catch(x){console.error(x);toast('Could not add, check your internet');btn.disabled=false;btn.textContent='Add'}
 }
 
 /* ---------- render ---------- */
@@ -262,14 +261,15 @@ function login(msg){
  <details class="card"><summary class="sub" style="cursor:pointer">Admin sign-in</summary><div class="sub" style="margin-top:8px">${e(msg||'Admins sign in with email and password.')}</div>
  <label for="em">Email</label><input id="em" type="email" autocomplete="username" inputmode="email">
  <label for="pw">Password</label><input id="pw" type="password" autocomplete="current-password">
- <button class="btn" id="go">Sign in</button></details>`;
+ <button class="btn" id="go">Sign in</button><button class="lnk" id="fp" style="margin-top:10px">Forgot password?</button></details>`;
  if(msg)$('#view details').open=true;
- const go=async()=>{try{await fb.signIn($('#em').value.trim(),$('#pw').value)}catch(x){toast(x.code=='too-many'?'Too many tries, wait a minute':x.code=='network'?'No internet':'Wrong email or password')}};
+ const go=async()=>{try{await fb.signIn($('#em').value.trim(),$('#pw').value)}catch(x){toast(x.code=='auth/too-many-requests'?'Too many tries, wait a minute':'Wrong email or password')}};
  $('#go').onclick=go;$('#pw').onkeydown=ev=>{if(ev.key=='Enter')go()};
+ $('#fp').onclick=async()=>{const m=$('#em').value.trim();if(!m)return toast('Type your email first');try{await fb.reset(m)}catch(x){}toast('Check your email for a reset link')};
 }
 
 /* ---------- data ---------- */
-// lists load one month at a time, so the app stays quick as history grows
+// lists load one month at a time to stay inside Firebase's free daily reads
 function ensureMonth(ym){
  if(months[ym])return;
  months[ym]=fb.watch(ym,admin?null:me.email,docs=>{
@@ -283,7 +283,7 @@ async function start(api){
  // "Add to Home Screen" keeps working on iPhones)
  const k=new URLSearchParams(location.search).get('k');let fromLink=false;
  if(k){try{const [m,pw]=unb64(k).split('\n');if(await fb.currentEmail()!=m){fromLink=true;await fb.signIn(m,pw)}}
-  catch(x){$('#view').innerHTML=x&&x.code=='network'?'<div class="empty"><b>📶</b>No internet. Connect and open the link again.</div>'
+  catch(x){$('#view').innerHTML=x&&x.code=='auth/network-request-failed'?'<div class="empty"><b>📶</b>No internet. Connect and open the link again.</div>'
    :'<div class="empty"><b>🔗</b>This link no longer works. Ask your admin to send you a new one.</div>';return}}
  fb.onAuth(async u=>{
   Object.values(months).forEach(f=>f());months={};lists={};
@@ -312,59 +312,43 @@ if(/iphone|ipad|ipod/i.test(navigator.userAgent)&&!standalone())showInstall('<b>
 if('serviceWorker' in navigator)addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));
 </script>
 <script type="module">
-import {createClient} from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.4/+esm';
-const URL_=window.SUPABASE_URL,KEY=window.SUPABASE_ANON_KEY;
-if(!URL_||!KEY||URL_.includes('PASTE'))document.getElementById('view').innerHTML='<p class="sub">Setup not finished: add your Supabase settings to config.js (see README).</p>';
+import {initializeApp} from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
+import {getAuth,initializeAuth,inMemoryPersistence,onAuthStateChanged,signInWithEmailAndPassword,createUserWithEmailAndPassword,sendPasswordResetEmail,signOut} from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
+import {initializeFirestore,persistentLocalCache,collection,doc,getDoc,getDocs,setDoc,addDoc,updateDoc,deleteDoc,onSnapshot,query,where} from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
+const C=window.FIREBASE_CONFIG;
+if(!C||!C.apiKey||C.apiKey.startsWith('PASTE'))document.getElementById('view').innerHTML='<p class="sub">Setup not finished: add your Firebase settings to config.js (see README).</p>';
 else{
- const sb=createClient(URL_,KEY);
- // a second, memory-only client used just to create team members' logins,
+ const app=initializeApp(C),a=getAuth(app);
+ // the local cache lets the app open and tick items without internet; changes sync when back online
+ const fs=initializeFirestore(app,{localCache:persistentLocalCache()},window.FIRESTORE_DATABASE||'(default)');
+ if(window.USE_EMULATORS)await window.USE_EMULATORS(a,fs); // local testing only
+ const L=collection(fs,'lists');
+ // a second, memory-only sign-in used just to create team members' logins,
  // so the admin stays signed in while adding someone
- const maker=createClient(URL_,KEY,{auth:{persistSession:false,autoRefreshToken:false,detectSessionInUrl:false,storageKey:'tt-maker'}});
+ const maker=initializeAuth(initializeApp(C,'maker'),{persistence:inMemoryPersistence});
+ if(window.USE_EMULATORS)await window.USE_EMULATORS(maker,null);
  const rand=n=>{const c='abcdefghijkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789',v=crypto.getRandomValues(new Uint32Array(n));return [...v].map(x=>c[x%c.length]).join('')};
- const ok=({data,error})=>{if(error)throw error;return data};
- const fromRow=r=>({id:r.id,to:r.person,toName:r.person_name,date:r.date,ym:r.ym,title:r.title,items:r.items||[],by:r.by_email});
-
- // Lists load a month at a time. They refresh on live changes, when the app comes back
- // into view, and every 30 seconds as a fallback.
- const watched=new Map();
- const load=async key=>{const [ym,to]=key.split('|');let q=sb.from('lists').select('*').eq('ym',ym);if(to)q=q.eq('person',to);
-  const {data,error}=await q;const f=watched.get(key);if(!error&&f)f(data.map(fromRow));if(error)console.error(error)};
- const refreshAll=()=>[...watched.keys()].forEach(load);
- let live=false,soon;
- const goLive=()=>{if(live)return;live=true;
-  sb.channel('lists').on('postgres_changes',{event:'*',schema:'public',table:'lists'},()=>{clearTimeout(soon);soon=setTimeout(refreshAll,300)}).subscribe();
-  setInterval(()=>{if(!document.hidden)refreshAll()},30000);
-  document.addEventListener('visibilitychange',()=>{if(!document.hidden)refreshAll()});
- };
-
- let lastEmail;
  start({
-  onAuth:f=>sb.auth.onAuthStateChange((ev,session)=>{
-   const em=session&&session.user.email||null;if(em===lastEmail)return;lastEmail=em;
-   setTimeout(()=>f(session?session.user:null),0); // supabase-js asks not to call it from inside this callback
-  }),
-  currentEmail:async()=>{const {data}=await sb.auth.getSession();return data.session&&data.session.user.email},
-  signIn:async(m,p)=>{const {error}=await sb.auth.signInWithPassword({email:m,password:p});
-   if(error)throw {code:error.name=='AuthRetryableFetchError'||!error.status?'network':error.status==429?'too-many':'invalid'}},
-  signOut:()=>sb.auth.signOut(),
-  staff:async m=>ok(await sb.from('staff').select('*').eq('email',m).maybeSingle()),
-  allStaff:async()=>ok(await sb.from('staff').select('*')),
-  allKeys:async()=>{const k={};ok(await sb.from('keys').select('*')).forEach(r=>k[r.email]=r.pw);return k},
-  createPerson:async(name,phone,adminEmail)=>{
-   // the login is a "+" variant of the admin's own address; no email is ever sent to it
-   const [u,d]=adminEmail.split('@'),email=(u+'+staff-'+rand(8)+'@'+d).toLowerCase(),pw=rand(24);
-   const r=ok(await maker.auth.signUp({email,password:pw}));
-   if(!r.session)throw new Error('Turn off "Confirm email" in Supabase (see README)');
-   await maker.auth.signOut();
-   const staff={email,name,phone,role:'team'};
-   ok(await sb.from('staff').insert(staff));ok(await sb.from('keys').insert({email,pw}));
-   return {staff,pw};
+  onAuth:f=>onAuthStateChanged(a,f),
+  currentEmail:async()=>{await a.authStateReady();return a.currentUser&&a.currentUser.email},
+  createPerson:async(name,phone)=>{
+   const email=('staff-'+rand(10)+'@example.com').toLowerCase(),pw=rand(24);
+   await createUserWithEmailAndPassword(maker,email,pw);await signOut(maker);
+   const staff={name,phone,role:'team'};
+   await setDoc(doc(fs,'keys',email),{pw});await setDoc(doc(fs,'staff',email),staff);
+   return {staff:{email,...staff},pw};
   },
-  removePerson:async email=>ok(await sb.rpc('remove_person',{e:email})),
-  watch:(ym,to,f)=>{const key=ym+'|'+(to||'');watched.set(key,f);load(key);goLive();return()=>watched.delete(key)},
-  add:async l=>{ok(await sb.from('lists').insert({person:l.to,person_name:l.toName,date:l.date,ym:l.ym,title:l.title,items:l.items,by_email:l.by}));refreshAll()},
-  tick:async(id,items)=>{ok(await sb.from('lists').update({items}).eq('id',id));refreshAll()},
-  del:async id=>{ok(await sb.from('lists').delete().eq('id',id));refreshAll()}
+  removePerson:async email=>{await deleteDoc(doc(fs,'staff',email));await deleteDoc(doc(fs,'keys',email))},
+  allKeys:async()=>{const k={};(await getDocs(collection(fs,'keys'))).docs.forEach(x=>k[x.id]=x.data().pw);return k},
+  signIn:(m,p)=>signInWithEmailAndPassword(a,m,p),
+  reset:m=>sendPasswordResetEmail(a,m),
+  signOut:()=>signOut(a),
+  staff:async m=>{const s=await getDoc(doc(fs,'staff',m));return s.exists()?s.data():null},
+  allStaff:async()=>(await getDocs(collection(fs,'staff'))).docs.map(x=>({email:x.id,...x.data()})),
+  watch:(ym,to,f)=>onSnapshot(to?query(L,where('to','==',to),where('ym','==',ym)):query(L,where('ym','==',ym)),s=>f(s.docs.map(x=>({id:x.id,...x.data()}))),x=>console.error(x)),
+  add:l=>addDoc(L,l),
+  tick:(id,items)=>updateDoc(doc(L,id),{items}),
+  del:id=>deleteDoc(doc(L,id))
  });
 }
 </script></body></html>

@@ -1,7 +1,7 @@
 // Lets the app open instantly and without internet.
 // App pages: network first (so updates show up), falling back to the saved copy.
-// Supabase library and fonts: saved copy first, since those versions never change.
-const CACHE = 'team-todo-v2';
+// Firebase library and fonts: saved copy first, since those versions never change.
+const CACHE = 'team-todo-v3';
 const SHELL = ['./', 'index.html', 'config.js', 'manifest.webmanifest', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/apple-touch-icon.png'];
 
 self.addEventListener('install', e => {
@@ -18,7 +18,7 @@ self.addEventListener('fetch', e => {
   const req = e.request, url = new URL(req.url);
   if (req.method !== 'GET') return;
   const sameSite = url.origin === location.origin;
-  const staticLib = url.hostname === 'cdn.jsdelivr.net' || url.hostname.endsWith('fonts.googleapis.com') || url.hostname.endsWith('fonts.gstatic.com');
+  const staticLib = url.hostname === 'www.gstatic.com' || url.hostname.endsWith('fonts.googleapis.com') || url.hostname.endsWith('fonts.gstatic.com');
   if (sameSite) {
     e.respondWith(fetch(req).then(res => {
       const copy = res.clone();
@@ -32,5 +32,5 @@ self.addEventListener('fetch', e => {
       return res;
     })));
   }
-  // everything else (Supabase sign-in and database traffic) goes straight to the network
+  // everything else (Firebase sign-in and database traffic) goes straight to the network
 });
