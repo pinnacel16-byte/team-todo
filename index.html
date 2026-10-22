@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#14645f">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Team To-Do">
+<title>Team To-Do</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@400;600;800&display=swap" rel="stylesheet">
+<script src="config.js"></script>
+<style>
+:root{--bg:#f1f4f3;--card:#fff;--ink:#16201f;--mute:#5d6b69;--line:#d6dfdc;--acc:#14645f;--acc2:#e3efed;--gold:#e0a526;--red:#c62828;--redbg:#fde4e2;--grn:#1b7a3d;--grnbg:#dff3e6}
+@media(prefers-color-scheme:dark){:root{--bg:#0f1716;--card:#18231f;--ink:#e8efed;--mute:#9bb0ab;--line:#2c3d38;--acc:#4fb8ae;--acc2:#1d302c;--redbg:#4a1f1d;--grnbg:#173a26;--red:#ff8a80;--grn:#6fd48f}}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+[hidden]{display:none!important}
+body{margin:0;background:var(--bg);color:var(--ink);font:18px/1.45 'Bricolage Grotesque',system-ui,sans-serif}
+main{max-width:560px;margin:auto;padding:env(safe-area-inset-top,0) 16px calc(env(safe-area-inset-bottom,0) + 96px)}
+header{display:flex;justify-content:space-between;align-items:flex-start;gap:8px;padding:20px 0 4px}
+h1{margin:0;font-size:28px;font-weight:800}h1 span{color:var(--gold)}
+.sub{color:var(--mute);font-size:16px}
+.lnk{background:none;border:0;color:var(--mute);font:inherit;font-size:15px;text-decoration:underline;cursor:pointer;padding:8px 0;white-space:nowrap}
+.install{display:flex;align-items:center;justify-content:space-between;gap:10px;background:var(--acc2);border-radius:14px;padding:12px 14px;margin:12px 0 0;font-size:16px}
+.install b{display:block}
+h2{font-size:15px;text-transform:uppercase;letter-spacing:.06em;color:var(--mute);margin:24px 0 8px}
+h2.late{color:var(--red)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px;margin-bottom:12px}
+.card.late{border-color:var(--red)}.card.done{border-color:var(--grn)}
+.top{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+h3{margin:0;font-size:21px}
+.when{color:var(--mute);font-size:15px;white-space:nowrap}
+.bar{height:8px;background:var(--line);border-radius:99px;margin:10px 0 6px;overflow:hidden}
+.bar i{display:block;height:100%;background:var(--acc);border-radius:99px;transition:width .25s}
+.done .bar i,.li.done .bar i{background:var(--grn)}
+.count{font-size:15px;color:var(--mute)}.done>.count,.li.done .count{color:var(--grn);font-weight:700}
+.item{display:flex;align-items:center;gap:14px;width:100%;min-height:56px;padding:10px 4px;border:0;border-top:1px solid var(--line);background:none;color:var(--ink);font:inherit;text-align:left;cursor:pointer}
+.box{flex:none;width:30px;height:30px;border:2.5px solid var(--acc);border-radius:9px;display:grid;place-items:center;color:#fff;font-size:20px;font-weight:800}
+.item.on .box{background:var(--grn);border-color:var(--grn)}
+.item.on .t{text-decoration:line-through;color:var(--mute)}
+.empty{text-align:center;padding:40px 16px;color:var(--mute)}
+.empty b{display:block;font-size:56px;margin-bottom:8px}
+label,.lbl{display:block;font-size:15px;color:var(--mute);margin:18px 0 6px;font-weight:600}
+input{width:100%;font:inherit;padding:14px;border:1px solid var(--line);border-radius:12px;background:var(--card);color:var(--ink)}
+.btn{width:100%;margin-top:22px;padding:16px;border:0;border-radius:14px;background:var(--acc);color:#fff;font:inherit;font-weight:700;cursor:pointer;text-align:center;text-decoration:none;display:block}
+.btn.alt{background:none;color:var(--acc);border:2px solid var(--acc)}.btn.wa{background:#1fa855}
+.btn.sm{width:auto;display:inline-block;margin:0;padding:8px 14px;font-size:15px;border-radius:10px}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{padding:10px 16px;border-radius:99px;border:2px solid var(--line);background:var(--card);color:var(--ink);font:inherit;font-size:17px;cursor:pointer}
+.chip.on{background:var(--acc);border-color:var(--acc);color:#fff}
+.rows input{margin-bottom:8px}
+.tabs{position:fixed;left:0;right:0;bottom:0;display:flex;background:var(--card);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom,0);z-index:5}
+.tabs button{flex:1;background:none;border:0;font:inherit;font-size:14px;color:var(--mute);padding:10px 0 12px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:2px}
+.tabs button b{font-size:22px;line-height:1}.tabs button.on{color:var(--acc);font-weight:700}
+.daynav{display:flex;align-items:center;justify-content:space-between;margin-top:16px}
+.daynav button{width:48px;height:48px;border-radius:12px;border:1px solid var(--line);background:var(--card);color:var(--ink);font-size:22px;cursor:pointer}
+.daynav div{text-align:center;font-weight:700}
+.person{font-size:20px;font-weight:800;margin-bottom:4px}
+.li{border-top:1px solid var(--line);padding:12px 0 4px}
+.li .top{cursor:pointer}
+.acts{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0 4px}
+.dng{color:var(--red)!important;border-color:var(--red)!important}
+.sheet{position:fixed;inset:0;background:#0008;display:none;align-items:flex-end;justify-content:center;z-index:9}
+.sheet.on{display:flex}.sheet>div{background:var(--bg);width:100%;max-width:560px;border-radius:20px 20px 0 0;padding:20px 16px calc(env(safe-area-inset-bottom,0) + 20px);max-height:90vh;overflow:auto}
+#toast{position:fixed;left:50%;bottom:96px;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 18px;border-radius:10px;display:none;font-size:16px;z-index:10;white-space:nowrap}
+</style></head>
+<body><main>
+<header><div><h1>Team <span>To-Do</span></h1><div class="sub" id="hi"></div></div><button class="lnk" id="out" hidden>Sign out</button></header>
+<div id="inst"></div>
+<div id="view"><p class="sub">Loading…</p></div>
+</main>
+<nav class="tabs" id="tabs" hidden></nav>
+<div class="sheet" id="sheet"><div id="sbox"></div></div>
+<div id="toast"></div>
+<script>
+const $=s=>document.querySelector(s);
+const e=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const ymd=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+const today=()=>ymd(new Date());
+const addDays=(k,n)=>{const d=new Date(k+'T00:00');d.setDate(d.getDate()+n);return ymd(d)};
+const nice=k=>{const t=today();return k==t?'Today':k==addDays(t,1)?'Tomorrow':k==addDays(t,-1)?'Yesterday':new Date(k+'T00:00').toLocaleDateString('en-IN',{weekday:'short',day:'numeric',month:'short'})};
+const appLink=()=>new URL('./',location.href).href;
+function toast(m){const t=$('#toast');t.textContent=m;t.style.display='block';clearTimeout(toast.h);toast.h=setTimeout(()=>t.style.display='none',2400)}
+function sheet(h){$('#sbox').innerHTML=h;$('#sheet').classList.add('on')}
+function closeSheet(){$('#sheet').classList.remove('on')}
+$('#sheet').onclick=ev=>{if(ev.target.id=='sheet')closeSheet()};
+
+let fb,me={},admin=false,staff=[],lists={},months={},tab='assign',day=today(),open=new Set();
+// the assign form keeps its own state so it survives re-renders
+const F={who:new Set(),when:'today',date:'',title:'',items:['']};
+const mine=()=>Object.values(lists).filter(l=>l.to==me.email);
+const isDone=l=>l.items.length&&l.items.every(i=>i.d);
+
+/* ---------- WhatsApp ---------- */
+function waLink(person,l,nudge){
+ const first=(person.name||'').split(' ')[0]||'there',ph=String(person.phone||'').replace(/\D/g,'');
+ const num=ph.length==10?'91'+ph:ph;
+ const left=l.items.filter(i=>!i.d);
+ const msg=nudge?`Hi ${first}, reminder: *${l.title}* (${nice(l.date)}) still has ${left.length} to do:\n${left.map(i=>'• '+i.t).join('\n')}\n\nTick them off here: ${appLink()}`
+  :`Hi ${first}, your to-do for ${nice(l.date)}:\n*${l.title}*\n${l.items.map(i=>'• '+i.t).join('\n')}\n\nTick them off here: ${appLink()}`;
+ return `https://wa.me/${num}?text=${encodeURIComponent(msg)}`;
+}
+
+/* ---------- shared list card (team view and admin "My list") ---------- */
+function card(l){
+ const n=l.items.filter(i=>i.d).length,all=isDone(l),late=!all&&l.date<today();
+ return `<div class="card ${all?'done':late?'late':''}"><div class="top"><h3>${e(l.title)}</h3><span class="when">${nice(l.date)}</span></div>
+ <div class="bar"><i style="width:${l.items.length?n/l.items.length*100:0}%"></i></div>
+ <div class="count">${all?'All done ✓':n+' of '+l.items.length+' done'}</div>
+ ${l.items.map((i,k)=>`<button class="item ${i.d?'on':''}" data-tick="${l.id}" data-k="${k}" aria-pressed="${!!i.d}"><span class="box">${i.d?'✓':''}</span><span class="t">${e(i.t)}</span></button>`).join('')}</div>`;
+}
+function vMine(){
+ const t=today(),ls=mine().sort((a,b)=>a.date>b.date?1:-1);
+ const late=ls.filter(x=>x.date<t&&!isDone(x)),now=ls.filter(x=>x.date==t),soon=ls.filter(x=>x.date>t);
+ const sec=(h,xs,c='')=>xs.length?`<h2 class="${c}">${h}</h2>`+xs.map(card).join(''):'';
+ return sec('Not finished yet',late,'late')+(now.length?sec('Today',now):`<div class="empty"><b>${late.length?'👆':'🎉'}</b>${late.length?'Nothing new for today.':'No to-dos for today.'}</div>`)+sec('Coming up',soon);
+}
+const pending=()=>mine().filter(x=>x.date<=today()).reduce((s,x)=>s+x.items.filter(i=>!i.d).length,0);
+
+/* ---------- admin: assign ---------- */
+function vAssign(){
+ const people=staff.filter(p=>p.role!='admin'||p.email==me.email).concat(staff.filter(p=>p.role=='admin'&&p.email!=me.email));
+ const w=F.when;
+ return `<div class="lbl">Who?</div><div class="chips">${people.map(p=>`<button class="chip ${F.who.has(p.email)?'on':''}" data-who="${e(p.email)}">${e(p.name||p.email)}${p.email==me.email?' (me)':''}</button>`).join('')||'<span class="sub">No staff added yet. See the README.</span>'}</div>
+ <div class="lbl">When?</div><div class="chips"><button class="chip ${w=='today'?'on':''}" data-when="today">Today</button><button class="chip ${w=='tomorrow'?'on':''}" data-when="tomorrow">Tomorrow</button><button class="chip ${w=='pick'?'on':''}" data-when="pick">Pick a date</button></div>
+ ${w=='pick'?`<input id="f_date" type="date" value="${e(F.date)}" min="${today()}" style="margin-top:10px">`:''}
+ <label for="f_title">Title</label><input id="f_title" placeholder="e.g. Hall setup for wedding" value="${e(F.title)}">
+ <div class="lbl">Tasks</div><div class="rows" id="rows">${F.items.map((v,i)=>row(v,i)).join('')}</div>
+ <button class="btn" data-a="assign">Assign</button>`;
+}
+const row=(v,i)=>`<input class="it" data-i="${i}" value="${e(v)}" placeholder="${i?'Next task…':'First task, e.g. Arrange 200 chairs'}" enterkeyhint="next">`;
+async function assign(){
+ const date=F.when=='today'?today():F.when=='tomorrow'?addDays(today(),1):F.date;
+ const items=F.items.map(s=>s.trim()).filter(Boolean).map(t=>({t,d:false})),title=F.title.trim();
+ if(!F.who.size)return toast('Pick who it is for');
+ if(!date)return toast('Pick a date');
+ if(!title)return toast('Add a title');
+ if(!items.length)return toast('Add at least one task');
+ const made=[];
+ try{for(const em of F.who){const p=staff.find(x=>x.email==em);const l={to:em,toName:p.name||em,date,ym:date.slice(0,7),title,items,by:me.email,at:Date.now()};await fb.add(l);made.push([p,l])}}
+ catch(x){return toast('Could not save, check your internet')}
+ F.who.clear();F.title='';F.items=[''];F.when='today';
+ sheet(`<h3>Assigned ✓</h3><p class="sub">It's already in their app. Send it on WhatsApp too:</p>
+ ${made.map(([p,l])=>`<a class="btn wa" target="_blank" rel="noopener" href="${waLink(p,l)}">Send to ${e(p.name||p.email)}</a>`).join('')}
+ <button class="btn alt" data-a="closesheet">Done</button>`);
+ render();
+}
+
+/* ---------- admin: progress ---------- */
+function vProgress(){
+ ensureMonth(day.slice(0,7));
+ const all=Object.values(lists),t=today();
+ const forDay=all.filter(l=>l.date==day),late=day==t?all.filter(l=>l.date<t&&!isDone(l)):[];
+ const group=xs=>{const g={};xs.forEach(l=>(g[l.to]=g[l.to]||[]).push(l));return Object.entries(g).sort((a,b)=>(a[1][0].toName||'')>(b[1][0].toName||'')?1:-1)};
+ const pcard=([em,ls])=>{const p=staff.find(x=>x.email==em)||{name:ls[0].toName,email:em};
+  return `<div class="card"><div class="person">${e(p.name||em)}</div>${ls.map(l=>{const n=l.items.filter(i=>i.d).length,o=open.has(l.id);
+  return `<div class="li ${isDone(l)?'done':''}"><div class="top" data-open="${l.id}"><h3>${e(l.title)}</h3><span class="when">${l.date!=day?nice(l.date)+' · ':''}${o?'▲':'▼'}</span></div>
+  <div class="bar"><i style="width:${l.items.length?n/l.items.length*100:0}%"></i></div><div class="count">${isDone(l)?'All done ✓':n+' of '+l.items.length+' done'}</div>
+  ${o?l.items.map((i,k)=>`<button class="item ${i.d?'on':''}" data-tick="${l.id}" data-k="${k}"><span class="box">${i.d?'✓':''}</span><span class="t">${e(i.t)}</span></button>`).join('')+
+  `<div class="acts">${isDone(l)?'':`<a class="btn sm wa" target="_blank" rel="noopener" href="${waLink(p,l,true)}">Remind on WhatsApp</a>`}<button class="btn sm alt dng" data-del="${l.id}">Delete</button></div>`:''}</div>`}).join('')}</div>`};
+ return `<div class="daynav"><button data-a="prevday" aria-label="Previous day">‹</button><div>${nice(day)}<div class="sub">${new Date(day+'T00:00').toLocaleDateString('en-IN',{day:'numeric',month:'long',year:'numeric'})}</div></div><button data-a="nextday" aria-label="Next day">›</button></div>
+ ${day!=t?'<button class="btn alt" data-a="gotoday" style="margin-top:12px">Back to today</button>':''}
+ ${late.length?'<h2 class="late">Not finished from earlier</h2>'+group(late).map(pcard).join(''):''}
+ ${forDay.length?`<h2>${nice(day)}</h2>`+group(forDay).map(pcard).join(''):`<div class="empty"><b>📋</b>Nothing assigned for ${nice(day).toLowerCase()}.<button class="btn" data-a="goassign">Assign something</button></div>`}`;
+}
+
+/* ---------- render ---------- */
+function render(){
+ if(!me.email)return;
+ const p=pending();
+ $('#hi').textContent=`Hi ${me.name}`+(admin?'':` · ${p?p+' thing'+(p>1?'s':'')+' to do':'nothing pending'}`);
+ if(admin){
+  const tabs=[['assign','＋','Assign'],['progress','✓','Progress']];if(mine().length)tabs.push(['mine','☰','My list'+(p?' ('+p+')':'')]);
+  $('#tabs').hidden=false;$('#tabs').innerHTML=tabs.map(([k,i,l])=>`<button class="${tab==k?'on':''}" data-tab="${k}"><b>${i}</b>${l}</button>`).join('');
+ }
+ // keep focus and typing when live updates arrive
+ const a=document.activeElement,id=a&&a.id,ii=a&&a.dataset&&a.dataset.i;
+ $('#view').innerHTML=!admin?vMine():tab=='assign'?vAssign():tab=='progress'?vProgress():vMine();
+ const back=id?document.getElementById(id):ii!=null?document.querySelector(`.it[data-i="${ii}"]`):null;
+ if(back){back.focus();try{const n=back.value.length;back.setSelectionRange(n,n)}catch(x){}}
+}
+
+/* ---------- events ---------- */
+let delArm='';
+document.addEventListener('click',async ev=>{
+ const t=ev.target.closest('button,a,[data-open]');if(!t)return;const d=t.dataset;
+ if(d.tick){const l=lists[d.tick];if(!l)return;const items=l.items.map((i,k)=>k==+d.k?{...i,d:!i.d}:i),was=l.items;l.items=items;render();
+  if(items.every(i=>i.d))toast('🎉 '+l.title+' done!');
+  try{await fb.tick(l.id,items)}catch(x){l.items=was;render();toast('Could not save, check your internet')}return}
+ if(d.tab){tab=d.tab;render();scrollTo(0,0);return}
+ if(d.who){F.who.has(d.who)?F.who.delete(d.who):F.who.add(d.who);render();return}
+ if(d.when){F.when=d.when;render();if(d.when=='pick')setTimeout(()=>{const x=$('#f_date');x&&x.showPicker&&x.showPicker()},50);return}
+ if(d.open){open.has(d.open)?open.delete(d.open):open.add(d.open);render();return}
+ if(d.del){if(delArm!=d.del){delArm=d.del;t.textContent='Tap again to delete';return}
+  delArm='';try{await fb.del(d.del);toast('Deleted')}catch(x){toast('Could not delete')}return}
+ const A={assign,closesheet:closeSheet,goassign:()=>{tab='assign';render()},gotoday:()=>{day=today();render()},
+  prevday:()=>{day=addDays(day,-1);render()},nextday:()=>{day=addDays(day,1);render()}};
+ if(d.a&&A[d.a])A[d.a]();
+});
+document.addEventListener('input',ev=>{
+ const t=ev.target;
+ if(t.id=='f_title')F.title=t.value;
+ if(t.id=='f_date')F.date=t.value;
+ if(t.classList.contains('it')){
+  F.items[+t.dataset.i]=t.value;
+  // typing in the last box adds a fresh empty box below it
+  if(+t.dataset.i==F.items.length-1&&t.value.trim()){F.items.push('');$('#rows').insertAdjacentHTML('beforeend',row('',F.items.length-1))}
+ }
+});
+document.addEventListener('keydown',ev=>{
+ const t=ev.target;if(ev.key!='Enter'||!t.classList||!t.classList.contains('it'))return;
+ ev.preventDefault();const nx=document.querySelector(`.it[data-i="${+t.dataset.i+1}"]`);if(nx)nx.focus();
+});
+$('#out').onclick=()=>fb.signOut().then(()=>location.reload());
+
+/* ---------- sign-in ---------- */
+function login(msg){
+ me={};$('#hi').textContent='';$('#tabs').hidden=true;$('#out').hidden=!msg;
+ $('#view').innerHTML=`<div class="card" style="margin-top:20px"><div class="sub">${e(msg||'Sign in with the email and password your admin gave you.')}</div>
+ <label for="em">Email</label><input id="em" type="email" autocomplete="username" inputmode="email">
+ <label for="pw">Password</label><input id="pw" type="password" autocomplete="current-password">
+ <button class="btn" id="go">Sign in</button><button class="lnk" id="fp" style="margin-top:10px">Forgot password?</button></div>`;
+ const go=async()=>{try{await fb.signIn($('#em').value.trim(),$('#pw').value)}catch(x){toast(x.code=='auth/too-many-requests'?'Too many tries, wait a minute':'Wrong email or password')}};
+ $('#go').onclick=go;$('#pw').onkeydown=ev=>{if(ev.key=='Enter')go()};
+ $('#fp').onclick=async()=>{const m=$('#em').value.trim();if(!m)return toast('Type your email first');try{await fb.reset(m)}catch(x){}toast('Check your email for a reset link')};
+}
+
+/* ---------- data ---------- */
+// lists load one month at a time to stay inside Firebase's free daily reads
+function ensureMonth(ym){
+ if(months[ym])return;
+ months[ym]=fb.watch(ym,admin?null:me.email,docs=>{
+  Object.keys(lists).forEach(k=>{if(lists[k].ym==ym)delete lists[k]});
+  docs.forEach(l=>lists[l.id]=l);render();
+ });
+}
+async function start(api){
+ fb=api;
+ fb.onAuth(async u=>{
+  Object.values(months).forEach(f=>f());months={};lists={};
+  if(!u)return login();
+  const em=u.email.toLowerCase(),s=await fb.staff(em).catch(()=>null);
+  if(!s)return login('This account is not on the staff list yet. Ask your admin to add '+u.email+'.');
+  me={email:em,name:s.name||em.split('@')[0]};admin=s.role=='admin';$('#out').hidden=false;
+  if(admin){try{staff=await fb.allStaff()}catch(x){staff=[]}}
+  const d=new Date();[-1,0,1].forEach(m=>ensureMonth(ymd(new Date(d.getFullYear(),d.getMonth()+m,1)).slice(0,7)));
+  render();
+ });
+}
+
+/* ---------- install as an app ---------- */
+let deferred;
+const standalone=()=>matchMedia('(display-mode: standalone)').matches||navigator.standalone;
+const hidInstall=()=>{try{return localStorage.getItem('tt_noinstall')}catch(x){return null}};
+function showInstall(html){if(standalone()||hidInstall())return;$('#inst').innerHTML=`<div class="install"><div>${html}</div><button class="lnk" id="noinst">Not now</button></div>`;
+ $('#noinst').onclick=()=>{try{localStorage.setItem('tt_noinstall','1')}catch(x){}$('#inst').innerHTML=''}}
+addEventListener('beforeinstallprompt',ev=>{ev.preventDefault();deferred=ev;
+ showInstall('<b>Install the app</b><button class="btn sm" id="doinst" style="margin-top:6px">Install</button>');
+ $('#doinst').onclick=async()=>{deferred.prompt();await deferred.userChoice;$('#inst').innerHTML=''}});
+if(/iphone|ipad|ipod/i.test(navigator.userAgent)&&!standalone())showInstall('<b>Install the app</b>Tap <b style="display:inline">Share</b> (the square with an arrow) then <b style="display:inline">Add to Home Screen</b>.');
+if('serviceWorker' in navigator)addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));
+</script>
+<script type="module">
+import {initializeApp} from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
+import {getAuth,onAuthStateChanged,signInWithEmailAndPassword,sendPasswordResetEmail,signOut} from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
+import {initializeFirestore,persistentLocalCache,collection,doc,getDoc,getDocs,addDoc,updateDoc,deleteDoc,onSnapshot,query,where} from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
+const C=window.FIREBASE_CONFIG;
+if(!C||!C.apiKey||C.apiKey.startsWith('PASTE'))document.getElementById('view').innerHTML='<p class="sub">Setup not finished: add your Firebase settings to config.js (see README).</p>';
+else{
+ const app=initializeApp(C),a=getAuth(app);
+ // the local cache lets the app open and tick items without internet; changes sync when back online
+ const fs=initializeFirestore(app,{localCache:persistentLocalCache()},window.FIRESTORE_DATABASE||'(default)');
+ if(window.USE_EMULATORS)await window.USE_EMULATORS(a,fs); // local testing only
+ const L=collection(fs,'lists');
+ start({
+  onAuth:f=>onAuthStateChanged(a,f),
+  signIn:(m,p)=>signInWithEmailAndPassword(a,m,p),
+  reset:m=>sendPasswordResetEmail(a,m),
+  signOut:()=>signOut(a),
+  staff:async m=>{const s=await getDoc(doc(fs,'staff',m));return s.exists()?s.data():null},
+  allStaff:async()=>(await getDocs(collection(fs,'staff'))).docs.map(x=>({email:x.id,...x.data()})),
+  watch:(ym,to,f)=>onSnapshot(to?query(L,where('to','==',to),where('ym','==',ym)):query(L,where('ym','==',ym)),s=>f(s.docs.map(x=>({id:x.id,...x.data()}))),x=>console.error(x)),
+  add:l=>addDoc(L,l),
+  tick:(id,items)=>updateDoc(doc(L,id),{items}),
+  del:id=>deleteDoc(doc(L,id))
+ });
+}
+</script></body></html>

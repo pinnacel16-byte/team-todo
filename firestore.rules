@@ -1,0 +1,28 @@
+rules_version = '2';
+// Team To-Do security rules. Paste this whole file into
+// Firebase console → Firestore Database → Rules (or Security), then press Publish.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function email() { return request.auth.token.email.lower(); }
+    function staffDoc() { return /databases/$(database)/documents/staff/$(email()); }
+    // Only people listed in the "staff" collection can use the app at all
+    function isStaff() { return request.auth != null && exists(staffDoc()); }
+    function isAdmin() { return isStaff() && get(staffDoc()).data.role == 'admin'; }
+    function onlyChanges(keys) { return request.resource.data.diff(resource.data).affectedKeys().hasOnly(keys); }
+
+    // Staff list is managed by the owner in the Firebase console
+    match /staff/{e} {
+      allow read: if request.auth != null && (email() == e || isAdmin());
+      allow write: if false;
+    }
+
+    // To-do lists: admins assign and delete; each person sees and ticks only their own
+    match /lists/{id} {
+      allow read: if isAdmin() || (isStaff() && resource.data.to == email());
+      allow create: if isAdmin() && request.resource.data.to is string && request.resource.data.items is list;
+      allow update: if isAdmin() || (isStaff() && resource.data.to == email() && onlyChanges(['items']));
+      allow delete: if isAdmin();
+    }
+  }
+}
