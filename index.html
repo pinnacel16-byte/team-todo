@@ -56,6 +56,9 @@ input{width:100%;font:inherit;padding:14px;border:1px solid var(--line);border-r
 .chip{padding:10px 16px;border-radius:99px;border:2px solid var(--line);background:var(--card);color:var(--ink);font:inherit;font-size:17px;cursor:pointer}
 .chip.on{background:var(--acc);border-color:var(--acc);color:#fff}
 .rows input{margin-bottom:8px}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:22px}.two .btn{margin:0}
+.hitag{font-size:13px;font-weight:600;background:var(--acc2);color:var(--acc);border-radius:99px;padding:2px 8px;vertical-align:middle}
+.en{display:block;font-size:15px;color:var(--mute)}
 .tabs{position:fixed;left:0;right:0;bottom:0;display:flex;background:var(--card);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom,0);z-index:5}
 .tabs button{flex:1;background:none;border:0;font:inherit;font-size:14px;color:var(--mute);padding:10px 0 12px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:2px}
 .tabs button b{font-size:22px;line-height:1}.tabs button.on{color:var(--acc);font-weight:700}
@@ -86,6 +89,7 @@ const ymd=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+Stri
 const today=()=>ymd(new Date());
 const addDays=(k,n)=>{const d=new Date(k+'T00:00');d.setDate(d.getDate()+n);return ymd(d)};
 const nice=k=>{const t=today();return k==t?'Today':k==addDays(t,1)?'Tomorrow':k==addDays(t,-1)?'Yesterday':new Date(k+'T00:00').toLocaleDateString('en-IN',{weekday:'short',day:'numeric',month:'short'})};
+const niceHi=k=>{const t=today();return k==t?'आज':k==addDays(t,1)?'कल':new Date(k+'T00:00').toLocaleDateString('hi-IN',{weekday:'long',day:'numeric',month:'long'})};
 const appLink=()=>new URL('./',location.href).href;
 function toast(m){const t=$('#toast');t.textContent=m;t.style.display='block';clearTimeout(toast.h);toast.h=setTimeout(()=>t.style.display='none',2400)}
 function sheet(h){$('#sbox').innerHTML=h;$('#sheet').classList.add('on')}
@@ -115,6 +119,8 @@ function wa(person,msg){
 const first=p=>(p.name||'').split(' ')[0]||'there';
 function waLink(person,l,nudge){
  const left=l.items.filter(i=>!i.d),link=personalLink(person.email);
+ if(l.lang=='hi')return wa(person,nudge?`नमस्ते ${first(person)}, याद दिला रहे हैं: *${l.title}* (${niceHi(l.date)}) में अभी ${left.length} काम बाकी हैं:\n${left.map(i=>'• '+i.t).join('\n')}\n\n👉 अपनी लिस्ट खोलने के लिए टैप करें: ${link}`
+  :`नमस्ते ${first(person)}, ${niceHi(l.date)} के लिए आपके काम:\n*${l.title}*\n${l.items.map(i=>'• '+i.t).join('\n')}\n\n👉 अपनी लिस्ट खोलने और काम पूरा होने पर टिक करने के लिए टैप करें: ${link}`);
  return wa(person,nudge?`Hi ${first(person)}, reminder: *${l.title}* (${nice(l.date)}) still has ${left.length} to do:\n${left.map(i=>'• '+i.t).join('\n')}\n\n👉 Tap to open your list: ${link}`
   :`Hi ${first(person)}, your to-do for ${nice(l.date)}:\n*${l.title}*\n${l.items.map(i=>'• '+i.t).join('\n')}\n\n👉 Tap to open your list and tick them off: ${link}`);
 }
@@ -122,17 +128,20 @@ const waWelcome=p=>wa(p,`Hi ${first(p)}! 👋 This is your to-do list link.\n\n�
 
 /* ---------- shared list card (team view and admin "My list") ---------- */
 function card(l){
- const n=l.items.filter(i=>i.d).length,all=isDone(l),late=!all&&l.date<today();
- return `<div class="card ${all?'done':late?'late':''}"><div class="top"><h3>${e(l.title)}</h3><span class="when">${nice(l.date)}</span></div>
+ const n=l.items.filter(i=>i.d).length,all=isDone(l),late=!all&&l.date<today(),hi=l.lang=='hi';
+ return `<div class="card ${all?'done':late?'late':''}" ${hi?'lang="hi"':''}><div class="top"><h3>${e(l.title)}</h3><span class="when">${hi?niceHi(l.date):nice(l.date)}</span></div>
  <div class="bar"><i style="width:${l.items.length?n/l.items.length*100:0}%"></i></div>
- <div class="count">${all?'All done ✓':n+' of '+l.items.length+' done'}</div>
+ <div class="count">${all?(hi?'सब पूरा ✓':'All done ✓'):hi?l.items.length+' में से '+n+' पूरे':n+' of '+l.items.length+' done'}</div>
  ${l.items.map((i,k)=>`<button class="item ${i.d?'on':''}" data-tick="${l.id}" data-k="${k}" aria-pressed="${!!i.d}"><span class="box">${i.d?'✓':''}</span><span class="t">${e(i.t)}</span></button>`).join('')}</div>`;
 }
+const hiMode=()=>mine().some(l=>l.lang=='hi');
 function vMine(){
- const t=today(),ls=mine().sort((a,b)=>a.date>b.date?1:-1);
+ const t=today(),ls=mine().sort((a,b)=>a.date>b.date?1:-1),hi=hiMode();
  const late=ls.filter(x=>x.date<t&&!isDone(x)),now=ls.filter(x=>x.date==t),soon=ls.filter(x=>x.date>t);
  const sec=(h,xs,c='')=>xs.length?`<h2 class="${c}">${h}</h2>`+xs.map(card).join(''):'';
- return sec('Not finished yet',late,'late')+(now.length?sec('Today',now):`<div class="empty"><b>${late.length?'👆':'🎉'}</b>${late.length?'Nothing new for today.':'No to-dos for today.'}</div>`)+sec('Coming up',soon);
+ return sec(hi?'अभी बाकी है':'Not finished yet',late,'late')
+  +(now.length?sec(hi?'आज':'Today',now):`<div class="empty"><b>${late.length?'👆':'🎉'}</b>${late.length?(hi?'आज के लिए कोई नया काम नहीं।':'Nothing new for today.'):(hi?'आज के लिए कोई काम नहीं।':'No to-dos for today.')}</div>`)
+  +sec(hi?'आने वाले':'Coming up',soon);
 }
 const pending=()=>mine().filter(x=>x.date<=today()).reduce((s,x)=>s+x.items.filter(i=>!i.d).length,0);
 
@@ -146,18 +155,53 @@ function vAssign(){
  ${w=='pick'?`<input id="f_date" type="date" value="${e(F.date)}" min="${today()}" style="margin-top:10px">`:''}
  <label for="f_title">Title</label><input id="f_title" placeholder="e.g. Hall setup for wedding" value="${e(F.title)}">
  <div class="lbl">Tasks</div><div class="rows" id="rows">${F.items.map((v,i)=>row(v,i)).join('')}</div>
- <button class="btn" data-a="assign">Assign</button>`;
+ <div class="two"><button class="btn" data-a="assign">Assign in English</button><button class="btn" data-a="assignhi" lang="hi">Assign in हिंदी</button></div>`;
 }
 const row=(v,i)=>`<input class="it" data-i="${i}" value="${e(v)}" placeholder="${i?'Next task…':'First task, e.g. Arrange 200 chairs'}" enterkeyhint="next">`;
-async function assign(){
+function checkForm(){
  const date=F.when=='today'?today():F.when=='tomorrow'?addDays(today(),1):F.date;
- const items=F.items.map(s=>s.trim()).filter(Boolean).map(t=>({t,d:false})),title=F.title.trim();
+ const items=F.items.map(s=>s.trim()).filter(Boolean),title=F.title.trim();
  if(!F.who.size)return toast('Pick who it is for');
  if(!date)return toast('Pick a date');
  if(!title)return toast('Add a title');
  if(!items.length)return toast('Add at least one task');
+ return {date,title,items};
+}
+const assign=()=>{const f=checkForm();if(f)save(f.date,'en',f.title,'',f.items.map(t=>({t,d:false})))};
+
+// Free Google Translate web endpoint, with MyMemory as a backup
+async function toHindi(text){
+ try{const r=await fetch('https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=hi&dt=t&q='+encodeURIComponent(text));
+  const j=await r.json();const out=j[0].map(x=>x[0]).join('');if(out)return out}catch(x){}
+ const r=await fetch('https://api.mymemory.translated.net/get?langpair=en|hi&q='+encodeURIComponent(text));
+ const j=await r.json();if(j.responseStatus==200&&j.responseData.translatedText)return j.responseData.translatedText;
+ throw new Error('no translation');
+}
+let HI=null;
+async function assignHi(){
+ const f=checkForm();if(!f)return;
+ const btn=document.querySelector('[data-a=assignhi]');btn.disabled=true;btn.textContent='Translating…';
+ let failed=false;
+ const tr=s=>toHindi(s).catch(()=>{failed=true;return s});
+ const [title,...items]=await Promise.all([f.title,...f.items].map(tr));
+ btn.disabled=false;btn.textContent='Assign in हिंदी';
+ HI={...f};
+ // the admin checks the Hindi (and can correct it) before it goes out
+ sheet(`<h3>Check the Hindi</h3><p class="sub">${failed?'⚠️ Translation isn\'t available right now (check internet). Type the Hindi yourself, or go back and send in English.':'Fix any word if needed, then assign.'}</p>
+ <label for="h_t">Title <span class="sub">· ${e(f.title)}</span></label><input id="h_t" lang="hi" value="${e(title)}">
+ ${items.map((t,i)=>`<label for="h_${i}">Task ${i+1} <span class="sub">· ${e(f.items[i])}</span></label><input id="h_${i}" lang="hi" value="${e(t)}">`).join('')}
+ <button class="btn" data-a="confirmhi" lang="hi">Assign in हिंदी</button><button class="btn alt" data-a="closesheet">Back</button>`);
+}
+function confirmHi(){
+ if(!HI)return;const f=HI;
+ const title=$('#h_t').value.trim()||f.title,items=f.items.map((en,i)=>({t:($('#h_'+i).value.trim()||en),en,d:false}));
+ HI=null;save(f.date,'hi',title,f.title,items);
+}
+async function save(date,lang,title,titleEn,items){
  const made=[];
- try{for(const em of F.who){const p=staff.find(x=>x.email==em);const l={to:em,toName:p.name||em,date,ym:date.slice(0,7),title,items,by:me.email,at:Date.now()};await fb.add(l);made.push([p,l])}}
+ try{for(const em of F.who){const p=staff.find(x=>x.email==em);const l={to:em,toName:p.name||em,date,ym:date.slice(0,7),title,items,by:me.email,at:Date.now()};
+  if(lang=='hi'){l.lang='hi';l.titleEn=titleEn}
+  await fb.add(l);made.push([p,l])}}
  catch(x){return toast('Could not save, check your internet')}
  F.who.clear();F.title='';F.items=[''];F.when='today';
  sheet(`<h3>Assigned ✓</h3><p class="sub">It's already in their app. Send it on WhatsApp too:</p>
@@ -174,9 +218,9 @@ function vProgress(){
  const group=xs=>{const g={};xs.forEach(l=>(g[l.to]=g[l.to]||[]).push(l));return Object.entries(g).sort((a,b)=>(a[1][0].toName||'')>(b[1][0].toName||'')?1:-1)};
  const pcard=([em,ls])=>{const p=staff.find(x=>x.email==em)||{name:ls[0].toName,email:em};
   return `<div class="card"><div class="person">${e(p.name||em)}</div>${ls.map(l=>{const n=l.items.filter(i=>i.d).length,o=open.has(l.id);
-  return `<div class="li ${isDone(l)?'done':''}"><div class="top" data-open="${l.id}"><h3>${e(l.title)}</h3><span class="when">${l.date!=day?nice(l.date)+' · ':''}${o?'▲':'▼'}</span></div>
+  return `<div class="li ${isDone(l)?'done':''}"><div class="top" data-open="${l.id}"><h3>${e(l.titleEn||l.title)}${l.lang=='hi'?' <span class="hitag">हिंदी</span>':''}</h3><span class="when">${l.date!=day?nice(l.date)+' · ':''}${o?'▲':'▼'}</span></div>
   <div class="bar"><i style="width:${l.items.length?n/l.items.length*100:0}%"></i></div><div class="count">${isDone(l)?'All done ✓':n+' of '+l.items.length+' done'}</div>
-  ${o?l.items.map((i,k)=>`<button class="item ${i.d?'on':''}" data-tick="${l.id}" data-k="${k}"><span class="box">${i.d?'✓':''}</span><span class="t">${e(i.t)}</span></button>`).join('')+
+  ${o?l.items.map((i,k)=>`<button class="item ${i.d?'on':''}" data-tick="${l.id}" data-k="${k}"><span class="box">${i.d?'✓':''}</span><span class="t">${e(i.en||i.t)}${i.en?`<span class="en" lang="hi">${e(i.t)}</span>`:''}</span></button>`).join('')+
   `<div class="acts">${isDone(l)?'':`<a class="btn sm wa" target="_blank" rel="noopener" href="${waLink(p,l,true)}">Remind on WhatsApp</a>`}<button class="btn sm alt dng" data-del="${l.id}">Delete</button></div>`:''}</div>`}).join('')}</div>`};
  return `<div class="daynav"><button data-a="prevday" aria-label="Previous day">‹</button><div>${nice(day)}<div class="sub">${new Date(day+'T00:00').toLocaleDateString('en-IN',{day:'numeric',month:'long',year:'numeric'})}</div></div><button data-a="nextday" aria-label="Next day">›</button></div>
  ${day!=t?'<button class="btn alt" data-a="gotoday" style="margin-top:12px">Back to today</button>':''}
@@ -211,7 +255,7 @@ async function addPerson(){
 function render(){
  if(!me.email)return;
  const p=pending();
- $('#hi').textContent=`Hi ${me.name}`+(admin?'':` · ${p?p+' thing'+(p>1?'s':'')+' to do':'nothing pending'}`);
+ $('#hi').textContent=!admin&&hiMode()?`नमस्ते ${me.name} · ${p?p+' काम बाकी':'कोई काम बाकी नहीं'}`:`Hi ${me.name}`+(admin?'':` · ${p?p+' thing'+(p>1?'s':'')+' to do':'nothing pending'}`);
  if(admin){
   const tabs=[['assign','＋','Assign'],['progress','✓','Progress'],['team','👥','Team']];if(mine().length)tabs.push(['mine','☰','My list'+(p?' ('+p+')':'')]);
   $('#tabs').hidden=false;$('#tabs').innerHTML=tabs.map(([k,i,l])=>`<button class="${tab==k?'on':''}" data-tab="${k}"><b>${i}</b>${l}</button>`).join('');
@@ -238,7 +282,7 @@ document.addEventListener('click',async ev=>{
   delArm='';try{await fb.del(d.del);toast('Deleted')}catch(x){toast('Could not delete')}return}
  if(d.rm){if(delArm!=d.rm){delArm=d.rm;t.textContent='Tap again to remove';return}
   delArm='';try{await fb.removePerson(d.rm);staff=staff.filter(p=>p.email!=d.rm);delete keys[d.rm];F.who.delete(d.rm);render();toast('Removed. Their link no longer works.')}catch(x){toast('Could not remove')}return}
- const A={assign,addperson:addPerson,closesheet:closeSheet,goassign:()=>{tab='assign';render()},gotoday:()=>{day=today();render()},
+ const A={assign,assignhi:assignHi,confirmhi:confirmHi,addperson:addPerson,closesheet:closeSheet,goassign:()=>{tab='assign';render()},gotoday:()=>{day=today();render()},
   prevday:()=>{day=addDays(day,-1);render()},nextday:()=>{day=addDays(day,1);render()}};
  if(d.a&&A[d.a])A[d.a]();
 });

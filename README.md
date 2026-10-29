@@ -35,7 +35,9 @@ Repeat for any other admin. Team members are added inside the app (next step), n
 
 ## Daily use (admin)
 - **Team tab:** type a name and WhatsApp number → **Add** → **Send link on WhatsApp**. That's their whole setup.
-- **Assign tab:** tap who, when, type a title and tasks → **Assign** → **Send on WhatsApp**.
+- **Assign tab:** tap who, when, type a title and tasks in English → **Assign in English** or **Assign in हिंदी** → **Send on WhatsApp**.
+  With Hindi, the app translates it (free Google Translate) and shows the Hindi so you can correct any word before it goes out.
+  The team member's screen and WhatsApp message are in Hindi; your Progress screen shows the English with the Hindi underneath.
 - **Progress tab:** see who has finished what. Tap a list for **Remind on WhatsApp** or **Delete**.
 - Someone leaves or loses their phone: **Team → Remove**. Their link stops working at once.
   To give them a new link, add them again.
